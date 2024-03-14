@@ -2,15 +2,18 @@ import os
 from azure.search.documents import SearchClient
 from azure.search.documents.models import VectorizableTextQuery
 from azure.search.documents.models import QueryType, QueryCaptionType, QueryAnswerType
+from azure.core.credentials import AzureKeyCredential
 from openai import AzureOpenAI
 from rag_helper import read_topics_from_file
+from dotenv import load_dotenv
 
-class AgentConfig:
-    def __init__(self, endpoint, index, credential, api_version):
+load_dotenv()
+
+class SearchAgentConfig:
+    def __init__(self, endpoint = None, index = None, credential = None):
         self.endpoint = endpoint
         self.index = index
         self.credential = credential
-        self.api_version = api_version
 
 class Agent:
     # Get search client for this agent
@@ -18,23 +21,24 @@ class Agent:
         search_client = SearchClient(
             endpoint=conf.endpoint, 
             index_name=conf.index, 
-            credential=conf.credential, 
-            api_version=conf.api_version
+            credential = AzureKeyCredential(conf.credential) , 
+            # api_version=conf.api_version
         )
         return search_client
 
     # Get openai client for this agent
     def get_openai_client(self):
         return AzureOpenAI(
-            azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"), 
-            api_key=os.environ.get("AZURE_OPENAI_KEY"), 
-            api_version=os.environ.get("AZURE_OPENAI_API_VERSION")
+            azure_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT"), 
+            api_key = os.environ.get("AZURE_OPENAI_KEY"), 
+            api_version = os.environ.get("AZURE_OPENAI_API_VERSION")
         )
     
     # Constructor
     def __init__(self, name, config):
         self.name = name
-        self.search_client = self.get_openai_client(config)
+        if config != None:
+            self.search_client = self.get_search_client(config)
         self.openai_client = self.get_openai_client()
         
     # RAG component - Search 
@@ -45,13 +49,14 @@ class Agent:
         FILTERSTR = "search.in(topic, '{}' , '|')"
         filter = FILTERSTR.format('|'.join(["{}".format(topic) for topic in filter])) if filter else None
         
+        # vector search
         if vector_search:
             vector_query = VectorizableTextQuery(text=query, k=1, fields="vector", exhaustive=True)
             
         client : SearchClient = self.search_client    
         results = client.search(
             search_text = query,
-            vector_queries = [vector_query] if vector_search else None,
+            vector_queries = [vector_query] if vector_search == True else None,
             query_type=QueryType.SEMANTIC,  semantic_configuration_name="default", 
             query_caption=QueryCaptionType.EXTRACTIVE, query_answer=QueryAnswerType.EXTRACTIVE,
             top = top_k,
@@ -59,17 +64,21 @@ class Agent:
             query_language=language
         )
         
-        answers = results.get_answers()
-        return answers
+        source_information = ""
+        for result in results:
+            splice_index = result["title"].find(". ", 0, 5) + 2 if result["title"].find(". ", 0, 5) != -1 else 0
+            source_information += "\n{title: '"+ result["title"][splice_index:] + "', content: '" + result['content'] + "'},\n"
+        
+        return source_information
     
     # RAG component - Ask
     def send_messages(self, messages):
         openai_client: AzureOpenAI = self.openai_client
         response = openai_client.chat.completions.create(
-            model = os.environ.get("AZURE_OPENAI_DEPLOYMENT"),
+            model = os.environ.get("AZURE_OPENAI_CHAT_DEPLOYMENT"),
             messages = messages,
             temperature = 0.5,
-            # max_tokens = 2048,
+            # max_tokens = 2048, 
             n=1
         )
         return response.choices[0].message
@@ -84,8 +93,8 @@ TOPICS, TOPIC_NAMES = read_topics_from_file()
 
 # Topic Agent
 class TopicAgent(Agent):
-    def __init__(self, name, config):
-        super().__init__(name, config)
+    def __init__(self, name):
+        super().__init__(name, None)
         
     def generate_conversation(self, query):
         system_message = "You are a legal assistant chatbot specializing in the Hong Kong law system. A user, who has no prior knowledge of law, may input a random story or some input related to legal information. Based on this story or query, sort the given topic list in descending order of relevancy to the story, such that the first topic is the most relevant, and the last topic is the least. The story may be in English or in Chinese, no matter what language the story is in, use the topic name in the topic list. ONLY answer the topic list no matter what user is asking for. You must return the full provided topic list, and only include the topic in the topic list. DO NOT answer the topic name in Chinese. Only SORT the topics from the topic list, in other words, do NOT create or return any new topics, even if creating new topics may be more accurate or helpful, because this is totally not correct. Make sure each topic in the sorted list is within the original topic list; there should be 31 topics total, no more, no less. Do not generate the same topic twice in the same response, do not use synonyms for the topics, and only ever respond with the identical wording as listed in the provided topic list. Output should be in fixed format."
@@ -136,18 +145,12 @@ class TopicAgent(Agent):
         answer = self.send_messages(messages)
         return answer
     
-topic_agent = TopicAgent("TopicAgent", AgentConfig(
-    endpoint = os.environ.get("AZURE_SEARCH_ENDPOINT"), 
-    index = os.environ.get("AZURE_SEARCH_INDEX"), 
-    credential = os.environ.get("AZURE_SEARCH_KEY"), 
-    api_version = os.environ.get("AZURE_SEARCH_API_VERSION")
-))
-    
+
 # Question Raiser Agent
 class QuestionAgent(Agent):
     
-    def __init__(self, name, config):
-        super().__init__(name, config)
+    def __init__(self, name):
+        super().__init__(name, config = None)
         
     def generate_conversation(self, query):
         system_message = """
@@ -170,9 +173,8 @@ class QuestionAgent(Agent):
 
 # Answer Agent
 class AnswerAgent(Agent):
-    
     def __init__(self, name, config):
-        super().__init__(name, self.get_search_client(config))
+        super().__init__(name, config)
         
     def generate_conversation(self, query, search_results):
         system_message = """You are an assistant that helps people with their Hong Kong legal questions by providing summary of content in the Provided Sources.
@@ -194,34 +196,33 @@ class AnswerAgent(Agent):
     
     def RAG(self, query):
         search_results = self.search(query)  
-        messages = self.generate_conversation(type, search_results)
+        messages = self.generate_conversation(query, search_results)
         answer = self.send_messages(messages)
         return answer
     
 # --------- TEST Agents ------------
 
+print(os.environ.get("AZURE_SEARCH_ENDPOINT"))
+
+
 # Test Topic Agent
 print("Test Topic Agent")
+topic_agent = TopicAgent("TopicAgent")
+
 print(topic_agent.RAG("I recently rented an apartment in Hong Kong, and after moving in, I discovered that there is a severe mold problem. The landlord was aware of the issue but did not disclose it to me before signing the lease agreement. I'm concerned about my health and want to know if I have any legal rights in this situation."))
 
 # Test Question Agent
 print("Test Question Agent")
-question_agent = QuestionAgent("QuestionAgent", AgentConfig(
-    endpoint = os.environ.get("AZURE_SEARCH_ENDPOINT"), 
-    index = os.environ.get("AZURE_SEARCH_INDEX"), 
-    credential = os.environ.get("AZURE_SEARCH_KEY"), 
-    api_version = os.environ.get("AZURE_SEARCH_API_VERSION")
-))
+question_agent = QuestionAgent("QuestionAgent")
 
 print(question_agent.RAG("I recently rented an apartment in Hong Kong, and after moving in, I discovered that there is a severe mold problem. The landlord was aware of the issue but did not disclose it to me before signing the lease agreement. I'm concerned about my health and want to know if I have any legal rights in this situation."))
 
 # Test Answer Agent
 print("Test Answer Agent")
-answer_agent = AnswerAgent("AnswerAgent", AgentConfig(
+answer_agent = AnswerAgent("AnswerAgent", SearchAgentConfig(
     endpoint = os.environ.get("AZURE_SEARCH_ENDPOINT"), 
     index = os.environ.get("AZURE_SEARCH_INDEX"), 
-    credential = os.environ.get("AZURE_SEARCH_KEY"), 
-    api_version = os.environ.get("AZURE_SEARCH_API_VERSION")
+    credential = os.environ.get("AZURE_SEARCH_KEY")
 ))
 
 print(answer_agent.RAG("I recently rented an apartment in Hong Kong, and after moving in, I discovered that there is a severe mold problem. The landlord was aware of the issue but did not disclose it to me before signing the lease agreement. I'm concerned about my health and want to know if I have any legal rights in this situation."))

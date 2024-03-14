@@ -2,7 +2,7 @@
 from azure.search.documents.models import VectorizableTextQuery
 from azure.search.documents.models import QueryType, QueryCaptionType, QueryAnswerType
 from azure.search.documents import SearchClient
-
+import csv
     
 def read_topics_from_file():
     TOPIC_NAMES = {}
@@ -19,3 +19,8 @@ def read_topics_from_file():
             TOPIC_NAMES[key] = {'en-US': en, 'zh-HK': tc, 'zh-CN': sc}
 
     TOPICS = 'Topic List: (' + TOPICS[:-2] + ')'
+    return TOPICS, TOPIC_NAMES
+    
+# TOPICS, TOPIC_NAMES = read_topics_from_file()
+# print(TOPICS)
+# print(TOPIC_NAMES)
