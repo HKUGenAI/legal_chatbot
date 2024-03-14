@@ -1,1 +1,10 @@
+
+
+# Ignore all .pyc files
+*.pyc
+
+# Ignore all files in the .vscode directory
+.vscode/
+
+
 .env
