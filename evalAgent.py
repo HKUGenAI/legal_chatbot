@@ -1,3 +1,4 @@
+import os
 import dotenv
 import evaluate
 import numpy as np
@@ -36,14 +37,14 @@ class EvalAgent:
     
     def evalOpenAIEmbedding(self, prediction, references):
         client = AzureOpenAI(
-            api_version = "2024-02-15-preview",
+            api_version = os.environ.get("AZURE_OPENAI_API_VERSION"),
         )
         prediction_embedding = client.embeddings.create(
-            model = "embedding",
+            model = os.environ.get("AZURE_OPENAI_EMBEDDING_DEPLOYMENT"),
             input = prediction,
         ).data[0].embedding
         references_embedding = client.embeddings.create(
-            model = "embedding",
+            model = os.environ.get("AZURE_OPENAI_EMBEDDING_DEPLOYMENT"),
             input = references,
         ).data[0].embedding
         return np.dot(prediction_embedding, references_embedding)
@@ -52,4 +53,4 @@ class EvalAgent:
 
 if __name__ == "__main__":
     # print(EvalAgent('BERTScore').evaluvate("hello here", "how are you"))
-    print(EvalAgent('OpenAIEmbedding').evaluvate("hello here", "how are you"))
+    print(EvalAgent('OpenAIEmbedding').evaluvate("i jaywalked", "i did not follow the zebra crossing"))
