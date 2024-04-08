@@ -1,6 +1,7 @@
 from agents import QuestionAgent, AnswerAgent, UserResponseAgent, SearchAgentConfig
 from evalAgent import EvalAgent
-import os, logging
+import os
+import logging
 
 logger = logging.getLogger(__name__)
 

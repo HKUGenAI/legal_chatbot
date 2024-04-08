@@ -1,7 +1,3 @@
-
-from azure.search.documents.models import VectorizableTextQuery
-from azure.search.documents.models import QueryType, QueryCaptionType, QueryAnswerType
-from azure.search.documents import SearchClient
 import csv
     
 def read_topics_from_file():

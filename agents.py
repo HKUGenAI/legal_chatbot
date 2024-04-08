@@ -20,7 +20,7 @@ class SearchAgentConfig:
 class Agent:
     # Constructor
     def __init__(self, config):
-        if config != None:
+        if config is not None:
             self.search_client = self.get_search_client(config)
         self.openai_client = self.get_openai_client()
 
@@ -44,7 +44,7 @@ class Agent:
 
     # RAG component - Search
     def search(self, query, top_k=10, filter=None, vector_search=False, language="en-us"):
-        if (query == None or query == ""):
+        if (query is None or query == ""):
             return {}
 
         FILTERSTR = "search.in(topic, '{}' , '|')"
@@ -59,7 +59,7 @@ class Agent:
         client: SearchClient = self.search_client
         results = client.search(
             search_text=query,
-            vector_queries=[vector_query] if vector_search == True else None,
+            vector_queries=[vector_query] if vector_search else None,
             query_type=QueryType.SEMANTIC,  semantic_configuration_name="default",
             query_caption=QueryCaptionType.EXTRACTIVE, query_answer=QueryAnswerType.EXTRACTIVE,
             top=top_k,
@@ -178,7 +178,7 @@ class QuestionAgent(Agent):
 
         conversation = [
             {'role': 'system', 'content': system_message},
-            {'role': 'user', 'content': f"Client query:\nI recently rented an apartment in Hong Kong, and after moving in, I discovered that there is a severe mold problem. The landlord was aware of the issue but did not disclose it to me before signing the lease agreement. I'm concerned about my health and want to know if I have any legal rights in this situation.\n\nPrevious questions:\nNone"},
+            {'role': 'user', 'content': "Client query:\nI recently rented an apartment in Hong Kong, and after moving in, I discovered that there is a severe mold problem. The landlord was aware of the issue but did not disclose it to me before signing the lease agreement. I'm concerned about my health and want to know if I have any legal rights in this situation.\n\nPrevious questions:\nNone"},
             {'role': 'assistant', 'content': "Did you document the mold problem in writing or take any photographs as evidence of the condition when you discovered it in the apartment?"},
             {'role': 'user', 'content': f"Client query:\n{query}\n\nPrevious questions:\n{previous_questions_formatted or 'None'}"}
         ]
