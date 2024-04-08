@@ -1,6 +1,6 @@
 # legal_chatbot
 
-**Demo** up at:[ https://legal-chat.streamlit.app/]()
+**Demo** up at:[https://legal-chat.streamlit.app/](https://legal-chat.streamlit.app/)
 
 ---
 
