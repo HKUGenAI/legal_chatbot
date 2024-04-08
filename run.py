@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-SIMILARITY_THRESHOLD = 0.9
+SIMILARITY_THRESHOLD = 0.85
 SEARCH_CONFIG = SearchAgentConfig(
         endpoint=os.environ.get("AZURE_SEARCH_ENDPOINT"),
         index=os.environ.get("AZURE_SEARCH_INDEX"),
