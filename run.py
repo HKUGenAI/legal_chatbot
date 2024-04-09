@@ -1,7 +1,9 @@
 from agents import QuestionAgent, AnswerAgent, UserResponseAgent, SearchAgentConfig
 from evalAgent import EvalAgent
+import multiprocessing as mp
 import os
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -11,11 +13,16 @@ SEARCH_CONFIG = SearchAgentConfig(
         index=os.environ.get("AZURE_SEARCH_INDEX"),
         credential=os.environ.get("AZURE_SEARCH_KEY")
     )
+answerAgent = AnswerAgent(SEARCH_CONFIG)
+
+def generateResponseMP(query, chatHistory, responseRef) -> None:
+    response = answerAgent.RAG(query, chatHistory)
+    responseRef.value = response
 
 class Chat:
     def __init__(self):
         self._questionAgent = QuestionAgent()
-        self._answerAgent = AnswerAgent(SEARCH_CONFIG)
+        self._answerAgent = answerAgent
         self._userResponseAgent = UserResponseAgent()
         self._evalAgent = EvalAgent('OpenAIEmbedding')
         self._chatHistory = []
@@ -50,7 +57,6 @@ class Chat:
         else:
             self._previous_question = question
             return question, (question, mock_answer, response, dummy_response, similarity), False
-        
 
 
     def run(self):
@@ -65,6 +71,9 @@ class Chat:
         while True:
             if answer == "exit":
                 break
+            responseRef = mp.Manager().Value(str, "")
+            responseMP = mp.Process(target=generateResponseMP, args=(query, self._chatHistory, responseRef))
+            responseMP.start()
 
             # Generate new question
             question = self._questionAgent.RAG(query, self._chatHistory)
@@ -75,7 +84,10 @@ class Chat:
             dummy_response = self._answerAgent.RAG(query, self._chatHistory + [(question, mock_answer)])
 
             # Generate real query response for the current round
-            response = self._answerAgent.RAG(query, self._chatHistory)
+            # response = self._answerAgent.RAG(query, self._chatHistory)
+            responseMP.join()
+            response = responseRef.value
+
             # Bepare similarity
             similarity = self._evalAgent.evaluvate(response, dummy_response)
             print(similarity)
