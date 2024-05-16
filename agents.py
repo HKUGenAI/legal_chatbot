@@ -43,7 +43,7 @@ class Agent:
         )
 
     # RAG component - Search
-    def search(self, query, top_k=10, filter=None, vector_search=False, language="en-us"):
+    def search(self, query, top_k=5, filter=None, vector_search=False, language="en-us"):
         if (query is None or query == ""):
             return {}
 
@@ -163,7 +163,7 @@ class QuestionAgent(Agent):
 
     def generate_conversation(self, query, chat_history=[]):
         system_message = """
-        You are an AI-powered legal agent specializing in Hong Kong law. 
+        You are an AI-powered legal agent specializing in Hong Kong law, some reference material regarding Hong Kong laws may be provided. 
         Your role is to gather essential information from clients by asking targeted questions, probing for details, and exploring different angles of their case. 
         Utilize your legal expertise to identify legal issues, assess strengths and weaknesses, and provide accurate guidance. 
         Approach clients with a professional, empathetic, and respectful demeanor, encouraging complete disclosure to ensure their interests are represented. 

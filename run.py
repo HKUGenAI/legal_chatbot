@@ -3,6 +3,7 @@ from evalAgent import EvalAgent
 import multiprocessing as mp
 import os
 import logging
+import time
 
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,11 @@ class Chat:
             question = self._questionAgent.RAG(query)
             self._previous_question = question
             return question, None, False
+        
+        # Generate real query response for the current round
+        responseRef = mp.Manager().Value(str, "")
+        responseMP = mp.Process(target=generateResponseMP, args=(query, self._chatHistory, responseRef))
+        responseMP.start()
 
         self._chatHistory.append((self._previous_question, query))
         # Generate new question
@@ -48,28 +54,34 @@ class Chat:
         dummy_response = self._answerAgent.RAG(query, self._chatHistory + [(question, mock_answer)])
 
         # Generate real query response for the current round
-        response = self._answerAgent.RAG(query, self._chatHistory)
+        # response = self._answerAgent.RAG(query, self._chatHistory)
+        responseMP.join()
+        response = responseRef.value
+
         # Bepare similarity
         similarity = self._evalAgent.evaluvate(response, dummy_response)
         if (similarity >= SIMILARITY_THRESHOLD):
             # Generate query response
-            return response, (question, mock_answer, response, dummy_response, similarity), True
+            answer = input("User: ")
+            self._chatHistory.append((question, answer))
+            return response, (question, mock_answer, response, dummy_response, similarity), False
         else:
             self._previous_question = question
             return question, (question, mock_answer, response, dummy_response, similarity), False
 
 
     def run(self):
+        # query = input("User: ")
+        # self._userQuery = query
+
+        # question = self._questionAgent.RAG(query)
+        # print(f"Sys: {question}")
+        # answer = input("User: ")
+        # self._chatHistory.append((question, answer))
         query = input("User: ")
-        self._userQuery = query
-
-        question = self._questionAgent.RAG(query)
-        print(f"Sys: {question}")
-        answer = input("User: ")
-        self._chatHistory.append((question, answer))
-
+        answer = ""
         while True:
-            if answer == "exit":
+            if answer == "exit()":
                 break
             responseRef = mp.Manager().Value(str, "")
             responseMP = mp.Process(target=generateResponseMP, args=(query, self._chatHistory, responseRef))
@@ -104,7 +116,9 @@ class Chat:
             if (similarity >= SIMILARITY_THRESHOLD):
                 # Generate query response
                 print(f"Sys: {response}")
-                exit()
+                answer = input("User: ")
+                self._chatHistory.append((question, answer))
+                #exit()
             else:
                 print(f"Sys: {question}")
                 answer = input("User: ")
