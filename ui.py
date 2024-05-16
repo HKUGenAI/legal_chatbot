@@ -8,10 +8,11 @@ CURR_RESPONSE = ""
 SIMILARITY = 0
 
 def write_meta():
+    #### Current Response:
+    #{CURR_RESPONSE}
+
     col2.write(
-        f"""#### Current Response:
-{CURR_RESPONSE}
-#### Next Question: 
+        f"""#### Next Question: 
 {NEXT_Q}
 #### Mock User Answer:
 {MOCK_USER_ANS}
@@ -29,7 +30,7 @@ if "model" not in st.session_state:
 
 with st.sidebar:
     show_meta = st.toggle("Show metadata", True)
-    "[View the source code](https://github.com/yyanghly/legal_chatbot)"
+    "[View the source code](https://github.com/HKUGenAI/legal_chatbot)"
 
 
 if show_meta:

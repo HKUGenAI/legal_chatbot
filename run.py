@@ -3,8 +3,6 @@ from evalAgent import EvalAgent
 import multiprocessing as mp
 import os
 import logging
-import time
-
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +37,6 @@ class Chat:
             self._previous_question = question
             return question, None, False
         
-        # Generate real query response for the current round
-        responseRef = mp.Manager().Value(str, "")
-        responseMP = mp.Process(target=generateResponseMP, args=(query, self._chatHistory, responseRef))
-        responseMP.start()
-
         self._chatHistory.append((self._previous_question, query))
         # Generate new question
         question = self._questionAgent.RAG(query, self._chatHistory)
@@ -54,16 +47,13 @@ class Chat:
         dummy_response = self._answerAgent.RAG(query, self._chatHistory + [(question, mock_answer)])
 
         # Generate real query response for the current round
-        # response = self._answerAgent.RAG(query, self._chatHistory)
-        responseMP.join()
-        response = responseRef.value
+        response = self._answerAgent.RAG(query, self._chatHistory)
 
         # Bepare similarity
         similarity = self._evalAgent.evaluvate(response, dummy_response)
         if (similarity >= SIMILARITY_THRESHOLD):
             # Generate query response
-            answer = input("User: ")
-            self._chatHistory.append((question, answer))
+            self._previous_question = response
             return response, (question, mock_answer, response, dummy_response, similarity), False
         else:
             self._previous_question = question
@@ -117,7 +107,7 @@ class Chat:
                 # Generate query response
                 print(f"Sys: {response}")
                 answer = input("User: ")
-                self._chatHistory.append((question, answer))
+                self._chatHistory.append((response, answer))
                 #exit()
             else:
                 print(f"Sys: {question}")

@@ -7,6 +7,6 @@
 #### Run Locally
 
 ```
-pip install -m requirements.txt
+pip install -r requirements.txt
 streamlit run ui.py
 ```
