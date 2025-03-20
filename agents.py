@@ -178,8 +178,8 @@ class QuestionAgent(Agent):
 
         conversation = [
             {'role': 'system', 'content': system_message},
-            {'role': 'user', 'content': "Client query:\nI recently rented an apartment in Hong Kong, and after moving in, I discovered that there is a severe mold problem. The landlord was aware of the issue but did not disclose it to me before signing the lease agreement. I'm concerned about my health and want to know if I have any legal rights in this situation.\n\nPrevious questions:\nNone"},
-            {'role': 'assistant', 'content': "Did you document the mold problem in writing or take any photographs as evidence of the condition when you discovered it in the apartment?"},
+            # {'role': 'user', 'content': "Client query:\nI recently rented an apartment in Hong Kong, and after moving in, I discovered that there is a severe mold problem. The landlord was aware of the issue but did not disclose it to me before signing the lease agreement. I'm concerned about my health and want to know if I have any legal rights in this situation.\n\nPrevious questions:\nNone"},
+            # {'role': 'assistant', 'content': "Did you document the mold problem in writing or take any photographs as evidence of the condition when you discovered it in the apartment?"},
             {'role': 'user', 'content': f"Client query:\n{query}\n\nPrevious questions:\n{previous_questions_formatted or 'None'}"}
         ]
         return conversation
